@@ -1,0 +1,63 @@
+/* Style the body */ 
+
+body {
+  background-color: white;
+}
+
+.row { /*Allows for horizontal layout of images*/
+display: flex;
+}
+
+.gallery { /* Styles the image gallery */ 
+margin: 20px;
+margin-left: 30px;
+margin-right: 30px;
+border: 1px solid #ccc;
+flex: 33.33%;
+padding: 10px;
+width: 300px;
+}
+
+div.gallery:hover { /* Adds a hover effect on images*/
+border: 1px solid #d3daea;
+background-color: #d3daea; 
+}
+
+div.gallery img {
+width: 100%;
+height: auto;
+}
+
+div.desc { /* Edits text under picture */ 
+padding: 15px;
+text-align: center;
+font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+}
+
+/* Style the footer */
+footer {
+background-color: #939497;
+padding: 10px;
+text-align: center;
+color: white; 
+}
+
+button { /* Style the button */ 
+border-color: #4f71ce;
+font-size:20px;
+font-family: Cambria, Cochin, Georgia, Times, 'Times New Roman', serif;
+transition-duration: 0.4s; 
+}
+
+button:hover { /* Adds a hover effect on button */
+background-color: #4f71ce;
+color: white;
+}
+
+/* Responsive layout - makes the two columns/boxes stack on top of each other instead of next to each other, on small screens */
+@media (max-width: 600px) {
+nav, article {
+  width: 100%;
+  height: auto;
+}
+}
