@@ -37,7 +37,7 @@
                 {% endwith %}
 
 
-                <table class="table table-hover table-dark">
+                <table class="table table-hover table-dark table-striped">
 
                     <tr>
 
@@ -64,9 +64,10 @@
                         <td>{{row.contact_mobile}}</td>
 
                         <td>
+                            <a href="/view/{{row.mrn}}" class="btn btn-info btn-xs">View</a>
                             <a href="/update/{{row.mrn}}" class="btn btn-warning btn-xs" data-toggle="modal" data-target="#modaledit{{row.mrn}}">Edit</a>
                             <a href="/delete/{{row.mrn}}" class="btn btn-danger btn-xs" onclick="return confirm('Are you sure you want to delete?')">Delete</a>
-                            <a href="/view/{{row.mrn}}" class="btn btn-info btn-xs">View</a>
+
                         </td>
 
                     </tr>

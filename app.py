@@ -69,7 +69,7 @@ class Patients(db.Model):
     contact_mobile = db.Column(db.String(255))
 
     # this first function __init__ is to establish the class for python GUI
-    # when user interacts with patients table, we want these 3 values to be shown
+    # when user interacts with patients table, we want these values to be shown
     def __init__(self, mrn, dob, first_name, last_name, gender, contact_mobile):
         self.mrn = mrn
         self.dob = dob
@@ -315,7 +315,7 @@ def register_patient():
         dob = request.form['dob']
         gender = request.form['gender']
         contact_mobile = request.form['contact_mobile']
-        contact_home = request.form['contact_home']
+        mrn=mrn
 
         ## Fields to capture patient conditions
         pt_conditions = request.form.getlist('conditions')
@@ -331,7 +331,7 @@ def register_patient():
             lastlogin = datetime.datetime.now()
             
             new_user = Users(username, password, email, account_type, mrn, datecreated, lastlogin)
-            new_patient = Patients(mrn, first_name, last_name, zip_code, dob, gender, contact_mobile, contact_home)
+            new_patient = Patients(mrn, first_name, last_name, zip_code, dob, gender, contact_mobile)
 
             db.session.add(new_user)
             db.session.commit()
@@ -350,7 +350,6 @@ def register_patient():
         msg = 'Please fill out the form!'
     # Show registration form with message (if any)
     return render_template('register_patient.html', msg=msg, conditions=db_conditions, medications=db_medications)
-
 
 
 @app.route('/account')
@@ -382,13 +381,11 @@ def update_account(): # note this function needs to match name in html form acti
         ## then return to account details page
         return redirect(url_for('account'))
 
-@app.route('/dashboard')
+@app.route('/careteam')
 def dashboard():
-    # Check if user is loggedin
-    if 'loggedin' in session:
-        return render_template('dashboard.html')
-    # User is not loggedin redirect to login page
-    return redirect(url_for('login'))
+    return render_template('careteam.html')
+
+
 
 @app.route('/logout')
 def logout():

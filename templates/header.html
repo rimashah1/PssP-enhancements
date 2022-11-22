@@ -23,11 +23,16 @@
                     <a class="nav-link" href="">Messaging</a>
                     <a class="nav-link" href="">Settings</a>
                     <a class="nav-link" href="{{ url_for('account') }}">Account</a>
-                    <a class="nav-link" href="{{ url_for('logout') }}">Logout</a>
                 </div>
             </div>
+
+            <div class="col-md-3 text-end">
+                <a href="{{ url_for('logout') }}" class="btn btn-primary float-right">Logout</a>
+            </div>
+
         </div>
     </nav>
+
 
     <br />
 
