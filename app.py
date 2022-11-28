@@ -1,9 +1,17 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, abort, session, send_file
 from flask_sqlalchemy import SQLAlchemy
+#from flask_login import LoginManager 
+
+from base64 import b64encode
+import base64
+from io import BytesIO #Converts data from Database into bytes
+
 from dotenv import load_dotenv
 import os
 import datetime
 import uuid
+
+from dashboard.blueprint import dashboard_blueprint
 
 load_dotenv()
 
@@ -18,10 +26,13 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://' + mysql_username + ':' + mysql_password + '@' + mysql_host + ':3306/patient_portal'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = 'sdf#$#dfjkhdf0SDJH0df9fd98343fdfu34rf'
-
+app.config['loggedin'] = 'false'
 db.init_app(app)
 
+
 ### Models ###
+
+
 class Users(db.Model):
     __tablename__ = 'production_accounts'
 
@@ -56,39 +67,43 @@ class Users(db.Model):
             'last_login': self.last_login
         }
 
-
 class Patients(db.Model):
     __tablename__ = 'production_patients'
 
     id = db.Column(db.Integer, primary_key=True)
     mrn = db.Column(db.String(255))
-    dob = db.Column(db.String(255))
     first_name = db.Column(db.String(255))
     last_name = db.Column(db.String(255))
-    gender = db.Column(db.String(255))
-    contact_mobile = db.Column(db.String(255))
+    zip_code = db.Column(db.String(255), nullable=True)
+    dob = db.Column(db.String(255), nullable=True)
+    gender = db.Column(db.String(255), nullable=True)
+    contact_mobile = db.Column(db.String(255), nullable=True)
+    contact_home = db.Column(db.String(255), nullable=True)
 
     # this first function __init__ is to establish the class for python GUI
-    # when user interacts with patients table, we want these values to be shown
-    def __init__(self, mrn, dob, first_name, last_name, gender, contact_mobile):
+    def __init__(self, mrn, first_name, last_name, zip_code, dob, gender, contact_mobile, contact_home):
         self.mrn = mrn
-        self.dob = dob
         self.first_name = first_name
         self.last_name = last_name
+        self.zip_code = zip_code
+        self.dob = dob
         self.gender = gender
         self.contact_mobile = contact_mobile
+        self.contact_home = contact_home
+
 
     # this second function is for the API endpoints to return JSON 
-    # if someone wants data in json format
     def to_json(self):
         return {
             'id': self.id,
             'mrn': self.mrn,
-            'dob': self.dob,
             'first_name': self.first_name,
             'last_name': self.last_name,
+            'zip_code': self.zip_code,
+            'dob': self.dob,
             'gender': self.gender,
-            'contact_mobile': self.contact_mobile
+            'contact_mobile': self.contact_mobile,
+            'contact_home': self.contact_home
         }
 
 class Conditions_patient(db.Model):
@@ -171,9 +186,31 @@ class Medications(db.Model):
             'med_human_name': self.med_human_name
         }
 
+# https://stackoverflow.com/questions/63690158/save-uploaded-image-to-database-on-flask
+class Patients_Photos(db.Model):
+    __tablename__ = 'production_patient_photos'
+
+    id = db.Column(db.Integer, primary_key=True)
+    mrn = db.Column(db.String(255))
+    photo_data = db.Column(db.LargeBinary, nullable=False)
+    photo_data_rendered = db.Column(db.String(255), nullable=True)
+    
+    # this first function __init__ is to establish the class for python GUI
+    def __init__(self, mrn, photo_data, photo_data_rendered):
+        self.mrn = mrn
+        self.photo_data = photo_data
+        self.photo_data_rendered = photo_data_rendered
+
+    # this second function is for the API endpoints to return JSON
+    def to_json(self):
+        return {
+            'id': self.id,
+            'photo_data': self.photo_data,
+            'photo_data_rendered': self.photo_data_rendered
+        }
 
 
-#### BASIC ROUTES WITHOUT DATA PULSL FOR NOW ####
+
 @app.route('/')
 def index():
     return render_template('landing.html')
@@ -186,7 +223,13 @@ def login():
         username = request.form['username']
         password = request.form['password']
         account = Users.query.filter_by(username=username, password=password).first()
-        if account:
+        if account:           
+            app.config['loggedin'] = 'true'
+            app.config['id'] = account.id
+            app.config['mrn'] = account.mrn
+            app.config['username'] = account.username
+            app.config['account_type'] = account.account_type
+
             session['loggedin'] = True
             session['id'] = account.id
             session['mrn'] = account.mrn
@@ -198,16 +241,16 @@ def login():
             db.session.commit()
             if session['account_type'] == 'admin':
                 return redirect(url_for('get_gui_patients'))
-            elif session['account_type'] == 'careprovider':
-                return redirect(url_for('get_gui_patients'))
             elif session['account_type'] == 'patient':
-                ## go to /details/{{row.mrn}} 
+                # go to /details/{{row.mrn}} 
                 return redirect(url_for('get_patient_details', mrn=session['mrn']))
         else:
             msg = 'Incorrect username / password !'
+            app.config['loggedin'] = 'false'
+
+            
     return render_template('/login.html', msg = msg)
-
-
+    
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     msg = ''
@@ -226,7 +269,6 @@ def register():
         msg = 'Please fill out the form!'
     # Show registration form with message (if any)
     return render_template('register.html', msg=msg)
-
 
 @app.route('/register/admin', methods=['GET', 'POST'])
 def register_admin():
@@ -352,6 +394,7 @@ def register_patient():
     return render_template('register_patient.html', msg=msg, conditions=db_conditions, medications=db_medications)
 
 
+
 @app.route('/account')
 def account():
     # Check if user is loggedin
@@ -381,10 +424,13 @@ def update_account(): # note this function needs to match name in html form acti
         ## then return to account details page
         return redirect(url_for('account'))
 
-@app.route('/careteam')
-def dashboard():
-    return render_template('careteam.html')
 
+app.register_blueprint(dashboard_blueprint, url_prefix='/dashboard')
+
+
+@app.route('/careteam')
+def careteam():
+    return render_template('careteam.html')
 
 
 @app.route('/logout')
@@ -394,23 +440,6 @@ def logout():
    session.pop('id', None)
    session.pop('username', None)
    return redirect(url_for('login'))
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -470,7 +499,6 @@ def delete(mrn): # note this function needs to match name in html form action
     flash("Patient Deleted Successfully")
     return redirect(url_for('get_gui_patients'))
 
-
 #This route is for getting patient details
 @app.route('/view/<string:mrn>', methods = ['GET'])
 def get_patient_details(mrn):
@@ -484,7 +512,6 @@ def get_patient_details(mrn):
     return render_template("patient_details.html", patient_details = patient_details, 
         patient_conditions = patient_conditions, patient_medications = patient_medications,
         db_conditions = db_conditions, db_medications = db_medications)
-
 
 # this endpoint is for updating ONE patient condition
 @app.route('/update_conditions', methods = ['GET', 'POST'])
@@ -650,7 +677,6 @@ def delete_patient(mrn):
     db.session.delete(patient)
     db.session.commit()
     return jsonify({'result': True})
-
 
 
 
